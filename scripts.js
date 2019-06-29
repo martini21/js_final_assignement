@@ -1,96 +1,167 @@
+var board = [
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0]
+];
+
+var socket;
+
+var token_set = false;
+
 $(document).ready( () => {
-    let game = new Game();
-})
+    socket = io();
+    build_gui();
 
-class Game {
-    constructor(){
-        this.players = [];
-        this.scoreboard = new Scoreboard();
-        this.turn;
-        this.board = [
-            [0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0]
-        ];
+    socket.on('turn', function(column){
+        console.log(column);
+    });
 
-        this.initGUI();
-    }
-
-    // builds initial GUI
-    initGUI(){
-        // where the board will be
-        $("body").append($("<div></div>").attr("id", "board"));
-        $("#board").css({
-            "background-color": "#f00",
-            "float": "left",
-            "width": "75%",
-            "height": "95vh"
+    socket.on('refresh_board', function(position, color){
+        console.log(position);
+        console.log(color);
+        $('#'+position).css({
+            'background-color': color
         });
-        // where the game info will be
-        $("body").append($("<div></div>").attr("id", "info"));
-        $("#info").css({
-            "background-color": "#0f0",
-            "float": "left",
-            "width": "25%",
-            "height": "95vh"
-        });
-        // builds the board
-        for(var i = 0; i < this.board.length - 1; i++){
-console.log("length: " + this.board.length);
-            for(var k = 0; k < this.board[i].length - 1; k++){
-console.log("length[k]: " + this.board[k].length);
-// console.log(""+i+k);
-                $("#board").append($("<div> </div>").attr({
-                    "id": ""+i+k,
-                    "row": i,
-                    "column": k
-                }));
-                $("#"+i+k).css({
-                    "width": "16%",
-                    "height": "15vh",
-                    "background-color": "#00f",
-                    "float": "left",
-                    "border": "1px solid black"
-                });
+    });
+
+    socket.on('msg', function(val){
+        console.log(val);
+    });
+
+    // TODO: update token info (also in server)
+    socket.on('win', function(players){
+        $('#scoreboard').html('<h3>Scoreboard</h3>')
+        $('#token_name').html('');
+        $('#token_desc').html('');
+        for(var i = 0; i < players.length; i++){
+            $('#scoreboard').append('<p>'+ players[i].name +': '+ players[i].points + '</p>')
+            // $('#token_name').append($('<p>' + players[i].token.name + '</p>'));
+            // $('#token_desc').append($('<p>' + players[i].token.description + '</p>'));
+        }
+        $('#token_name').append($('<p>' + players[0].token.name + '</p>'));
+            $('#token_desc').append($('<p>' + players[0].token.description + '</p>'));
+
+        for(var i = 0; i < board.length; i++){
+            for(var k = 0; k < board[i].length; k++){
+                $('#'+i+k).css('background-color', 'white');
             }
         }
-        // builds game info
-        $('#info').append($("<div></div>").attr("id", "player_one"));
-        $("#player_one").css({
-            "width": "50%",
-            "float": "left",
-            "height": "auto",
-            "background-color": "white"
-        });
-        $("#info").append($("<p>Name:</p>"));
-        $("#info").append($("<textarea></textarea>").attr("id","player_one_name"));
-        $("#info").append($("<button>Set name</button>").attr({
-            "type":"button"
-        }).css({
-            "width": "50%",
 
-        }));
+    });
+});
+
+function build_gui(){
+    // where the board will be
+    $("body").append($("<div></div>").attr("id", "board"));
+    $("#board").css({
+        "background-color": "blue",
+        "float": "left",
+        "width": "70%",
+        "padding":"2.5%",
+        "height": "auto"
+    });
+    // where the game info will be
+    $("body").append($("<div></div>").attr("id", "info"));
+    $("#info").css({
+        "background-color": "DarkOliveGreen",
+        "float": "left",
+        "width": "20%",
+        "height": "auto",
+        "padding":"2.5%",
+    });
+    // builds the board
+    for(var i = 0; i < board.length; i++){
+        for(var k = 0; k < board[i].length; k++){
+            $("#board").append($("<div></div>").attr({
+                "id": ""+i+k,
+                "row": i,
+                "column": k
+            }));
+            $("#"+i+k).css({
+                "width": "14%",
+                "height": "15vh",
+                "background-color": "white",
+                "float": "left",
+                "border": "1px solid black"
+            });
+
+            $('#'+i+k).click({column: k, id: ''+i+k},function(event){
+                //check if token is not set
+                if(token_set){
+                    socket.emit('use_token', event.data.id);
+                    token_set = false;
+                }else{
+                    socket.emit('turn',event.data.column);
+                }
+            });
+        }
     }
-}
+    // builds player info
+    $('#info').append($("<div></div>").attr("id", "player_name"));
+    $("#player_name").css({
+        "background-color": "white",
+        "width": "95%",
+        "padding":"2.5%",
+        "float": "left",
+        "height": "auto",
+        "border": "1px solid black"
+    });
+    $("#player_name").append($("<p>Name:</p>"));
+    $("#player_name").append($("<textarea></textarea>").attr("id","player_name_ta"));
+    $("#player_name_ta").css("width", "95%");
+    $("#player_name").append($("<button>Set name</button>").attr({
+        "type":"button",
+        "id": "player_set_name"
+    }).css({
+        "width": "97.5%"
+    }));
+    $('#player_set_name').click(function(){
+        var name = $('#player_name_ta').val();
+        socket.emit('player_name', name);
+    });
 
-class Player {
-    constructor(name){
-        this.name = name;
-    }
-}
+    $('#info').append($('<div><h3>Scoreboard</h3></div>').attr('id', 'scoreboard'));
+    $('#scoreboard').css({
+        'margin-top': '2.5%',
+        'padding': '2.5%',
+        'width': '95%',
+        'float': 'left',
+        'height': 'auto',
+        'border': '1px solid black',
+        'background-color': 'white'
+    });
 
-class Scoreboard {
-    constructor(){
-        
-    }
-}
-
-class Token {
-    constructor(){
-        
-    }
-
+    // build token
+    $('#info').append($('<div><h3>Token</h3></div>').attr('id','token'));
+    $('#token').css({
+        'margin-top': '2.5%',
+        'padding': '2.5%',
+        'width': '95%',
+        'float': 'left',
+        'height': 'auto',
+        'border': '1px solid black',
+        'background-color': 'white'
+    });
+    $('#token').append($('<p><b>Name:</b></p>'));
+    $('#token').append($('<div></div>').attr('id', 'token_name'));
+    $('#token_name').css({
+        'width': '95%'
+    });
+    $('#token').append($('<p><b>Description:</b></p>'));
+    $('#token').append($('<div></div>').attr('id', 'token_desc'));
+    $('#token_desc').css({
+        'width': '95%'
+    });
+    $('#token').append($('<button>Use token</button>').attr({
+        "type":"button",
+        "id": "use_token"
+    }).css({
+        "width": "97.5%"
+    }));
+    $('#use_token').click(function(){
+        token_set = true;
+    });
 }
